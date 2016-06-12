@@ -1,8 +1,26 @@
+import os
+import os.path
+
 import aiohttp
 import asyncio
 
 from watchdog import observers, events
 from aiohttp import web
+
+
+def localfile(path):
+    return os.path.join(os.path.dirname(__file__), path)
+
+
+async def run_transcrypt(filename):
+    path = os.path.abspath(filename)
+    parent = os.path.dirname(path)
+    base = os.path.basename(path)
+    current_dir = os.getcwd()
+    os.chdir(parent)
+    proc = await asyncio.create_subprocess_exec('transcrypt', '-nb', base)
+    await proc.wait()
+    os.chdir(current_dir)
 
 
 class FileWatcher(events.PatternMatchingEventHandler):
@@ -17,14 +35,14 @@ class FileWatcher(events.PatternMatchingEventHandler):
 
     async def compile(self):
         print('COMPILE')
-        process = await asyncio.create_subprocess_exec('transcrypt', '-nb',
-                                                       'entry.py')
-        await process.wait()
         self._ws.send_str('RELOAD')
 
 
 async def root_handler(request):
-    return web.Response(body=b"Hello, world")
+    await run_transcrypt(localfile('clientside/reload.py'))
+    template = open(localfile('templates/index.html'), 'rb')
+    return web.Response(body=template.read())
+
 
 async def compile_handler(request):
     ws = web.WebSocketResponse()
@@ -49,8 +67,10 @@ async def compile_handler(request):
 
     return ws
 
+
 app = web.Application()
 app.router.add_route('GET', '/', root_handler)
 app.router.add_route('GET', '/compiler', compile_handler)
+app.router.add_static('/js', localfile('clientside/__javascript__'))
 
 web.run_app(app)
