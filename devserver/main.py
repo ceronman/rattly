@@ -35,11 +35,11 @@ class FileWatcher(events.PatternMatchingEventHandler):
 
     async def compile(self):
         print('COMPILE')
+        await run_transcrypt('entry.py')
         self._ws.send_str('RELOAD')
 
 
 async def root_handler(request):
-    await run_transcrypt(localfile('clientside/reload.py'))
     template = open(localfile('templates/index.html'), 'rb')
     return web.Response(body=template.read())
 
@@ -52,13 +52,9 @@ async def compile_handler(request):
     observer.schedule(FileWatcher(ws), '.', recursive=True)
     observer.start()
 
+    print('opening connection!')
     async for msg in ws:
-        if msg.tp == aiohttp.MsgType.text:
-            if msg.data == 'close':
-                await ws.close()
-            else:
-                ws.send_str(msg.data + '/answer')
-        elif msg.tp == aiohttp.MsgType.error:
+        if msg.tp == aiohttp.MsgType.error:
             print('ws connection closed with exception %s' % ws.exception())
 
     print('websocket connection closed')
@@ -67,10 +63,12 @@ async def compile_handler(request):
 
     return ws
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(run_transcrypt('entry.py'))
 
 app = web.Application()
 app.router.add_route('GET', '/', root_handler)
 app.router.add_route('GET', '/compiler', compile_handler)
-app.router.add_static('/js', localfile('clientside/__javascript__'))
+app.router.add_static('/js', '__javascript__')
 
 web.run_app(app)
