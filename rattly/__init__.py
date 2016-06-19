@@ -1,3 +1,1 @@
-from rattly.gameloop import GameLoop
-
-GameLoop = GameLoop
+from rattly.gameloop import GameLoop  # noqa

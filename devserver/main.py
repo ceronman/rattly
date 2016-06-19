@@ -24,10 +24,10 @@ async def run_transcrypt(filename):
 
 
 class FileWatcher(events.PatternMatchingEventHandler):
-    def __init__(self, ws):
+    def __init__(self):
         super().__init__(['*.py'])
         self._loop = asyncio.get_event_loop()
-        self._ws = ws
+        self.ws = None
 
     def on_any_event(self, event):
         print('EVENT:', repr(event))
@@ -36,21 +36,25 @@ class FileWatcher(events.PatternMatchingEventHandler):
     async def compile(self):
         print('COMPILE')
         await run_transcrypt('entry.py')
-        self._ws.send_str('RELOAD')
+        if self.ws is not None:
+            self.ws.send_str('RELOAD')
 
 
 async def root_handler(request):
     template = open(localfile('templates/index.html'), 'rb')
     return web.Response(body=template.read())
 
+observer = observers.Observer()
+file_watcher = FileWatcher()
+observer.schedule(file_watcher, '.', recursive=True)
+observer.start()
 
 async def compile_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    observer = observers.Observer()
-    observer.schedule(FileWatcher(ws), '.', recursive=True)
-    observer.start()
+    # FIXME: check if ws is already defined
+    file_watcher.ws = ws
 
     print('opening connection!')
     async for msg in ws:
@@ -58,8 +62,8 @@ async def compile_handler(request):
             print('ws connection closed with exception %s' % ws.exception())
 
     print('websocket connection closed')
-    observer.stop()
-    observer.join()
+
+    file_watcher.ws = None
 
     return ws
 
@@ -72,3 +76,5 @@ app.router.add_route('GET', '/compiler', compile_handler)
 app.router.add_static('/js', '__javascript__')
 
 web.run_app(app)
+observer.stop()
+observer.join()

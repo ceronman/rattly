@@ -1,15 +1,13 @@
-from rattly import devserver
+import rattly.browser as browser
 
 
 class GameLoop:
     def __init__(self, selector):
-        devserver.start()
-        container = document.querySelector(selector)
-        canvas = document.createElement('canvas')
+        browser.start_reloader()
+        canvas = browser.create_canvas(selector)
         context = canvas.getContext('2d')
         canvas.width = 640
         canvas.height = 480
         canvas.style.backgroundColor = 'grey'
         context.font = "30px Arial"
-        context.fillText("Hello World!", 50, 50)
-        container.appendChild(canvas)
+        context.fillText("Hello World!", 50, 150)
